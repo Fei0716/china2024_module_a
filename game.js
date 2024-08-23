@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const canvas = document.querySelector('#canvas');
     const ctx = canvas.getContext('2d');
     const buildingTools = document.querySelectorAll('.building-tool');
+    const btnSpeed = document.querySelector('#btn-speed');
+
 
     //onload
     loadName();
@@ -96,17 +98,17 @@ document.addEventListener('DOMContentLoaded', function(){
           ctx.beginPath();
           //draw the background of depleted hp
           ctx.fillStyle = "#252525";
-          ctx.fillRect(this.x , this.y - 7 , Map.cellSize,5);
+          ctx.fillRect(this.x + 2 , this.y - 7 , Map.cellSize - 5,5);
           //draw current hp bar in red
           ctx.fillStyle = "red";
-          ctx.fillRect(this.x , this.y - 7 , (this.currentHp/ this.hp * Map.cellSize),5);
+          ctx.fillRect(this.x + 2, this.y - 7 , (this.currentHp/ this.hp * Map.cellSize) - 5,5);
           ctx.closePath();
 
           //start generating resources in every sec
           if(this.generateResourcesInterval)return;
           this.generateResourcesInterval = setInterval(()=>{
             this.generateResources();
-          },1000);
+          },1000 * gameSpeed);
       }
       generateResources(){
           if(gameHasEnded){
@@ -128,6 +130,7 @@ document.addEventListener('DOMContentLoaded', function(){
         }
     }
     upgrade(){
+
           //upgrade wood castle to stone castle
           this.type = 'stone';
             this.image = new Image();
@@ -140,6 +143,8 @@ document.addEventListener('DOMContentLoaded', function(){
             this.currentHp = this.hp;
             this.energy =  10;
             this.costs =  {energy: 100, coin: 100};
+            //deduct cost
+            this.deductCost();
     }
     destroy(){
           clearInterval(this.generateResourcesInterval);
@@ -180,17 +185,17 @@ document.addEventListener('DOMContentLoaded', function(){
             ctx.beginPath();
             //draw the background of depleted hp
             ctx.fillStyle = "#252525";
-            ctx.fillRect(this.x , this.y - 7 , Map.cellSize,5);
+            ctx.fillRect(this.x  + 2 , this.y - 7 , Map.cellSize - 5,5);
             //draw current hp bar in red
             ctx.fillStyle = "red";
-            ctx.fillRect(this.x , this.y - 7 , (this.currentHp/ this.hp * Map.cellSize),5);
+            ctx.fillRect(this.x  + 2 , this.y - 7 , (this.currentHp/ this.hp * Map.cellSize) - 5,5);
             ctx.closePath();
 
             //start generating resources in every sec
             if(this.generateResourcesInterval)return;
             this.generateResourcesInterval = setInterval(()=>{
                 this.generateResources();
-            },1000);
+            },1000 * gameSpeed);
         }
         generateResources(){
             if(gameHasEnded){
@@ -212,6 +217,7 @@ document.addEventListener('DOMContentLoaded', function(){
             }
         }
         upgrade(){
+
             //upgrade silver mine to gold mine
             this.type = 'gold';
             this.image = new Image();
@@ -224,6 +230,9 @@ document.addEventListener('DOMContentLoaded', function(){
             this.currentHp = this.hp;
             this.coin = 10;
             this.costs = {energy: 60, coin: 60};
+
+            //deduct cost
+            this.deductCost();
         }
         destroy(){
             clearInterval(this.generateResourcesInterval);
@@ -252,6 +261,13 @@ document.addEventListener('DOMContentLoaded', function(){
 
             //deduct the cost from resources
             this.deductCost();
+
+            //arrows
+            this.imageArrow1 = new Image();
+            this.imageArrow1.src = 'assets/other/laserRed08.png';
+            this.imageArrow2= new Image();
+            this.imageArrow2.src = 'assets/other/laserRed09.png';
+
         }
         draw(){
             if(this.x === null || this.y === null)return;
@@ -261,26 +277,61 @@ document.addEventListener('DOMContentLoaded', function(){
             ctx.beginPath();
             //draw the background of depleted hp
             ctx.fillStyle = "#252525";
-            ctx.fillRect(this.x , this.y - 7 , Map.cellSize,5);
+            ctx.fillRect(this.x + 2 , this.y - 7 , Map.cellSize - 5,5);
             //draw current hp bar in red
             ctx.fillStyle = "red";
-            ctx.fillRect(this.x , this.y - 7 , (this.currentHp/ this.hp * Map.cellSize),5);
+            ctx.fillRect(this.x + 2, this.y - 7 , Math.max((this.currentHp/ this.hp * Map.cellSize) - 5 , 0),5);
             ctx.closePath();
 
-
+            //draw the projectile arrows from the tower
+            if(this.target){
+                //draw the projectile on the monster
+                if(range(1,2) === 1){
+                    ctx.drawImage(this.imageArrow1, this.target.x , this.target.y , Map.cellSize, Map.cellSize);
+                }else{
+                    ctx.drawImage(this.imageArrow2, this.target.x , this.target.y , Map.cellSize, Map.cellSize);
+                }
+            }
             //start generating resources in every sec
             if(this.generateResourcesInterval)return;
             this.generateResourcesInterval = setInterval(()=>{
                 this.generateResources();
-            },1000);
+            },1000 * gameSpeed);//detect and attack one time per second
         }
-        generateResources(){
+        generateResources(){//for detecting and shooting at the monster
             if(gameHasEnded){
                 clearInterval(this.generateResourcesInterval);
                 return;
             }
-            //check whether there's monster nearby
+            //check whether there's monster nearby, can only detect and attack at single monster at a time
+            let monsterDetected = monsters.find((m) => (m.x >= this.x -  (3 * Map.cellSize) && m.x <= this.x + (3 * Map.cellSize)) && (m.y >= this.y -  (3 * Map.cellSize) && m.y <= this.y + (3 * Map.cellSize)));
 
+            //if detected a monster target and attack the monster
+            if(monsterDetected){
+                this.target = monsterDetected;
+                    //if already attacking the bloody target
+                    if(!this.attackInterval){
+                        //1 atk per second
+                        this.attackInterval = setInterval(()=>{
+                            this.attack();
+                        }, 1000 * gameSpeed);
+                    }
+                    return;
+            }
+
+        }
+        attack(){
+            if(this.target.currentHp > 0){
+                //decrease the hp of target
+                this.target.currentHp -= this.dmg;
+                this.target.currentHp = Math.max(0 , this.target.currentHp);
+            }else{
+                //if the target is bloody dead stop attack him ma guy
+                clearInterval(this.attackInterval);
+                this.attackInterval = null;
+                this.target.destroy();
+                this.target = null;
+            }
         }
         deductCost(){
             if(!gameHasStarted)return;//the first castle is free of charge
@@ -293,6 +344,22 @@ document.addEventListener('DOMContentLoaded', function(){
                     default:break;
                 }
             }
+        }
+        upgrade(){
+            //upgrade bow tower to long bow tower
+            this.type = 'long-bow';
+            this.image = new Image();
+            this.image.src = './assets/tower/high-tower-2.png';
+            //have to wait for the image to load up first or else nothing will be drawn
+            this.image.onload = () => {
+                this.draw();
+            };
+            this.hp =  80;
+            this.currentHp = this.hp;
+            this.range =  5;
+            this.dmg = 10;
+            this.costs =  {energy: 60, coin: 60};
+
         }
         destroy(){
             towers.splice(towers.findIndex((t) => t.x === this.x && t.y === this.y), 1);
@@ -319,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function(){
         }
         generatePosition(){
             //possible positions:  -5 col to 30 col
-            this.x = range(-5, 30) * Map.cellSize;
+            this.x = range(-5, 30);
             //if x if between 0 and 25, y have to be before 0 or after 20
             if(this.x >= 0 && this.x <= 25){
                 //0, y before 0 & 1, y after 20
@@ -329,6 +396,7 @@ document.addEventListener('DOMContentLoaded', function(){
             }
 
             this.y  *=  Map.cellSize;
+            this.x  *=  Map.cellSize;
         }
         draw(){
             //draw the monster
@@ -338,10 +406,10 @@ document.addEventListener('DOMContentLoaded', function(){
             ctx.beginPath();
             //draw the background of depleted hp
             ctx.fillStyle = "#252525";
-            ctx.fillRect(this.x , this.y - 7 , Map.cellSize,5);
+            ctx.fillRect(this.x + 2, this.y - 7 , Map.cellSize - 5,5);
             //draw current hp bar in red
             ctx.fillStyle = "red";
-            ctx.fillRect(this.x , this.y - 7 , (this.currentHp/ this.hp * Map.cellSize),5);
+            ctx.fillRect(this.x + 2, this.y - 7 , (this.currentHp/ this.hp * Map.cellSize) - 5,5);
             ctx.closePath();
         }
 
@@ -353,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function(){
                     //1 atk per second
                     this.attackInterval = setInterval(()=>{
                         this.attack();
-                    }, 1000);
+                    }, 1000 * gameSpeed);
                 }
 
                 return;
@@ -474,6 +542,15 @@ document.addEventListener('DOMContentLoaded', function(){
         }
         destroy(){
             monsters.splice(monsters.findIndex((m) => m.x === this.x && m.y === this.y), 1);
+            //to stop the monster from attacking building while they already fking dead
+            clearInterval(this.attackInterval);
+            this.attackInterval = null;
+            //remove the target
+            this.target = null;
+            this.reachTargetX = false;
+            this.reachTargetY = false;
+            //add 1 to score
+            scores++;
         }
     }
 
@@ -499,8 +576,9 @@ document.addEventListener('DOMContentLoaded', function(){
     var scores = 0;
     var coins = 0;
     var energy = 0;
-
-        //initiliaze
+    var spawnMonsterInterval = null;
+    var spawnMonsterSeconds = 5000;//spawn new monsters every 5 sec
+    //initiliaze
     requestAnimationFrame(gameLoop);
     timer.startTimer();
     //automatically placed in the center of the game map at the start of the game.
@@ -522,9 +600,24 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     function startGame(){
         if(gameHasStarted)return;
+
         gameHasStarted = true;
         //spawn a monster
-        monsters.push(new Monster(latestMonsterId));
+        // monsters.push(new Monster(latestMonsterId));
+        //spawn monster 1-4  randomly througout the game
+        spawnMonsterInterval = setInterval(()=>{
+            let random = range(0, 100);//get random probability
+            //if get above 70% spawn monsters randomly
+            if(random > 70){
+                let newMonstersCount = range(1, 4) * (Math.max(Math.floor(timer.second / 10) , 1));//number of monsters increase over time => every 10 seconds
+
+                for(let i = 0; i < newMonstersCount; i++){
+                    monsters.push(new Monster(latestMonsterId));
+                }
+            }
+
+        }, spawnMonsterSeconds * gameSpeed);
+
     }
     //generate a random number between start to end
     function range(start,end){
@@ -532,8 +625,20 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     function endGame(){
+        //remove the monster spawn interval
+        clearInterval(spawnMonsterInterval);
         gameHasEnded = true;
-        alert('end');
+        //store the score,time in the localStorage
+        let ranks = JSON.parse(localStorage.getItem('ranks'))||[];
+        let name = localStorage.getItem('name');
+        ranks.push({
+            name: name,
+            score: scores,
+            time: timer.second,
+        });
+        localStorage.setItem('ranks', JSON.stringify(ranks));
+        //redirect to rank page
+        window.location.href = "rank.html";
     }
     function gameLoop(t){
         if(gameHasEnded)return;
@@ -552,14 +657,14 @@ document.addEventListener('DOMContentLoaded', function(){
             for(let m of mines){
                 m.draw();
             }
-            //draw the towers
-            for(let t of towers){
-                t.draw();
-            }
             //draw the monsters
             for(let m of monsters){
                 m.update();
                 m.draw();
+            }
+            //draw the towers
+            for(let t of towers){
+                t.draw();
             }
             //call game loop
             requestAnimationFrame(gameLoop);
@@ -580,12 +685,9 @@ document.addEventListener('DOMContentLoaded', function(){
         lastX = e.clientX;
         lastY = e.clientY;
         e.dataTransfer.setData('application/json', JSON.stringify(data));
-
         //add other drag event to the target tool
         e.target.addEventListener('dragend', dragEnd);
     }
-
-
     function dragEnd(e){
         lastX = 0;
         lastY = 0;
@@ -595,33 +697,40 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     function drop(e){
         let dataTransfer  = JSON.parse(e.dataTransfer.getData('application/json'));
-
         //if the target is on wood castle upgrade the wood castle to stone castle
-        let upgradeCastle = castles.find( (c) => (e.offsetX >= c.x && e.offsetX <= c.x + Map.cellSize) && c.type==='wood');
+        let upgradeCastle = castles.find( (c) => ((e.offsetX >= c.x && e.offsetX <= c.x + Map.cellSize) && (e.offsetY >= c.y && e.offsetY <= c.y + Map.cellSize) ) && c.type==='wood');
         if(upgradeCastle){
             if(energy  >= 100 && coins >= 100){
                 upgradeCastle.upgrade();
+                return;
             }
+            //else not enough resources
+            alert("Not enough energy or coin!!!");
             return
         }
-
         //if the target is on silver mine upgrade the silver mine to gold mine
-        let silverMine = mines.find( (m) => (e.offsetX >= m.x && e.offsetX <= m.x + Map.cellSize) && m.type==='silver');
+        let silverMine = mines.find( (m) => ((e.offsetX >= m.x && e.offsetX <= m.x + Map.cellSize) && (e.offsetY >= m.y && e.offsetY <= m.y + Map.cellSize) )&& m.type==='silver');
         if(silverMine){
             //check for resources for creating a gold mine
             if(energy >= 60 && coins >= 60){
                 silverMine.upgrade();
+                return;
             }
+            //else not enough resources
+            alert("Not enough energy or coin!!!");
             return;
         }
 
         //if the target is on bow tower upgrade the bow tower to long bow tower
-        let bowTower = towers.find( (t) => (e.offsetX >= t.x && e.offsetX <= t.x + Map.cellSize) && t.type==='bow');
+        let bowTower = towers.find( (t) => ((e.offsetX >= t.x && e.offsetX <= t.x + Map.cellSize) && (e.offsetY >= t.y && e.offsetY <= t.y + Map.cellSize) )&& t.type==='bow');
         if(bowTower){
             //check for resources for creating a gold mine
             if(energy >= 60 && coins >= 60){
                 bowTower.upgrade();
+                return;
             }
+            //else not enough resources
+            alert("Not enough energy or coin!!!");
             return;
         }
 
@@ -636,27 +745,35 @@ document.addEventListener('DOMContentLoaded', function(){
                 //check for resources for creating a wood castle
                 if(energy >= 50){
                     castles.push(new Castle('wood' ,getDropCoordinate(e.offsetX ), getDropCoordinate(e.offsetY )));
+                    break;
                 }
+                //else not enough resources
+                alert("Not enough energy!!!");
                 break;
 
             case 'tool-silver-mine':
                 if(energy >= 30){
                     mines.push(new Mine('silver' ,getDropCoordinate(e.offsetX ), getDropCoordinate(e.offsetY )));
+                    break;
                 }
+                //else not enough resources
+                alert("Not enough energy!!!");
                 break;
 
 
             case 'tool-bow-tower':
-                if(energy  >= 30){
+                if(coins  >= 30){
                     towers.push(new Tower('bow' ,getDropCoordinate(e.offsetX ), getDropCoordinate(e.offsetY )));
+                    break;
                 }
+                //else not enough resources
+                alert("Not enough coin!!!");
                 break;
 
             default:break;
         }
 
     }
-
     function getDropCoordinate(value){
        //check whether the value is perfectly divisible by 30
         if(value > 0 && value % 30 === 0){
@@ -669,9 +786,17 @@ document.addEventListener('DOMContentLoaded', function(){
         //else check the closest left
         return value - (value % 30);
     }
-    buildingTools.forEach((e, index) => {
-        addGlobalEventListener('img', 'dragstart', dragStart, e);
+
+    function changeGameSpeed(){
+        gameSpeed = gameSpeed === 1 ? 2 : 1;
+        btnSpeed.textContent = `Speed x ${gameSpeed === 1 ? 2 : 1}`;
+    }
+    //event listeners
+    buildingTools.forEach(function(e, index) {
+        //have to use :scope the specify the child of the parent or else will get error without the :scope
+        addGlobalEventListener(':scope > img', 'dragstart', dragStart, e);
     });
     addGlobalEventListener('#canvas', 'dragover', dragOver );
     addGlobalEventListener('#canvas', 'drop', drop );
+    addGlobalEventListener('#btn-speed', 'click', changeGameSpeed);
 });

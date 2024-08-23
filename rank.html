@@ -8,7 +8,35 @@
 </head>
 <body>
 <!--    rank interface-->
+<main role="main" class="container appear">
+  <img src="./assets/logo/logo-1.png" alt="Logo of Castle Guard" id="img-logo" class="d-block">
+  <h1 class="text-center mb-2">Castle Guard</h1>
 
-<script src="./app.js"></script>
+  <div class="mb-2">
+      <h2 class="mb-1 text-center">Current Record:</h2>
+      <ul id="current-record">
+      </ul>
+  </div>
+
+  <table id="table-record" class="mb-2">
+      <tr>
+        <th>Rank</th>
+        <th>Name</th>
+        <th>Time</th>
+        <th>Score</th>
+      </tr>
+  </table>
+
+  <div class="btn-group">
+    <a href="game.html">
+      <button id="btn-restart" class="btn">Restart</button>
+    </a>
+
+    <a href="index.html">
+      <button id="btn-home" class="btn">Home</button>
+    </a>
+  </div>
+</main>
+<script src="./rank.js"></script>
 </body>
 </html>
